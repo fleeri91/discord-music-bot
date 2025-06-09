@@ -12,13 +12,11 @@ import { guildVoiceMap } from "./voiceManager";
 
 export async function joinAndPlay(
   voiceChannel: VoiceBasedChannel,
-  url: string
+  url?: string
 ) {
   const guildId = voiceChannel.guild.id;
 
   let voiceData = guildVoiceMap.get(guildId);
-
-  // Reuse connection and player if already exists
   let connection = voiceData?.connection;
   let player = voiceData?.player;
 
@@ -36,31 +34,31 @@ export async function joinAndPlay(
   if (!player) {
     player = createAudioPlayer();
 
-    // Listen for idle but DON'T destroy connection to keep bot in VC
     player.on(AudioPlayerStatus.Idle, () => {
-      console.log("Audio player is idle, but connection stays alive.");
-      // Do NOT call connection.destroy() here
+      console.log("Audio player is idle.");
     });
 
     player.on("error", (error) => {
       console.error("Playback error:", error);
-      // Optionally destroy connection on error or keep alive based on your preference
-      // connection.destroy();
-      // guildVoiceMap.delete(guildId);
     });
 
     connection.subscribe(player);
   }
 
-  // Store or update the map
+  // Store updated connection/player
   guildVoiceMap.set(guildId, { connection, player });
 
-  const stream = ytdl(url, {
-    filter: "audioonly",
-    quality: "highestaudio",
-    highWaterMark: 1 << 25,
-  });
+  // Only play if URL is provided
+  if (url) {
+    const stream = ytdl(url, {
+      filter: "audioonly",
+      quality: "highestaudio",
+      highWaterMark: 1 << 25,
+    });
 
-  const resource = createAudioResource(stream);
-  player.play(resource);
+    const resource = createAudioResource(stream);
+    player.play(resource);
+  }
+
+  return { connection, player };
 }

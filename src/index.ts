@@ -30,32 +30,6 @@ client.on("interactionCreate", async (interaction) => {
     return;
   }
 
-  if (interaction.commandName === "stop") {
-    // Check if bot has a player for this guild
-    const voiceData = guildVoiceMap.get(guild.id);
-
-    if (!voiceData) {
-      await interaction.reply({
-        content: "Nothing is playing right now.",
-        ephemeral: true,
-      });
-      return;
-    }
-
-    try {
-      voiceData.player.stop(); // Stops current playback but keeps connection alive
-      await interaction.reply(
-        "Playback stopped. I am still connected to the voice channel."
-      );
-    } catch (error) {
-      console.error(error);
-      await interaction.reply({
-        content: "Failed to stop playback.",
-        ephemeral: true,
-      });
-    }
-  }
-
   // Get full GuildMember object
   const member =
     interaction.member instanceof GuildMember
@@ -63,32 +37,65 @@ client.on("interactionCreate", async (interaction) => {
       : await guild.members.fetch(interaction.user.id);
 
   const voiceChannel = member.voice.channel;
+
   if (!voiceChannel) {
     await interaction.reply({
-      content: "You need to be in a voice channel first!",
+      content: "You need to be in a voice channel!",
       ephemeral: true,
     });
     return;
   }
 
-  // Get the "url" option string from the slash command
-  const url = interaction.options.getString("url");
-  if (!url) {
-    await interaction.reply({
-      content: "You must provide a URL to play!",
-      ephemeral: true,
-    });
-    return;
-  }
+  const command = interaction.commandName;
 
-  await interaction.deferReply();
+  if (command === "mbplay") {
+    const url = interaction.options.getString("url");
+    if (!url) {
+      await interaction.reply({
+        content: "You must provide a URL!",
+        ephemeral: true,
+      });
+      return;
+    }
 
-  try {
-    await joinAndPlay(voiceChannel, url);
-    await interaction.editReply(`Now playing: ${url}`);
-  } catch (error) {
-    console.error(error);
-    await interaction.editReply("Failed to play audio.");
+    await interaction.deferReply();
+    try {
+      await joinAndPlay(voiceChannel, url);
+      await interaction.editReply(`Now playing: ${url}`);
+    } catch (err) {
+      console.error(err);
+      await interaction.editReply("Musicbot: Failed to play audio.");
+    }
+  } else if (command === "mbstop") {
+    const voiceData = guildVoiceMap.get(guild.id);
+    if (!voiceData) {
+      await interaction.reply({
+        content: "Nothing is playing.",
+        ephemeral: true,
+      });
+      return;
+    }
+
+    voiceData.player.stop();
+    await interaction.reply("Musicbot: Stopped music.");
+  } else if (command === "mbjoin") {
+    try {
+      const { connection, player } = await joinAndPlay(voiceChannel); // No URL passed!
+      await interaction.reply("Musicbot: Joined the voice channel.");
+    } catch (err) {
+      console.error(err);
+      await interaction.reply("Musicbot: Failed to join the channel.");
+    }
+  } else if (command === "mbleave") {
+    const voiceData = guildVoiceMap.get(guild.id);
+    if (!voiceData) {
+      await interaction.reply("Musicbot: I'm not in a voice channel.");
+      return;
+    }
+
+    voiceData.connection.destroy();
+    guildVoiceMap.delete(guild.id);
+    await interaction.reply("Musicbot: Left the voice channel.");
   }
 });
 
