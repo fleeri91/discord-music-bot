@@ -1,4 +1,4 @@
-import { Client, GatewayIntentBits } from "discord.js";
+import { Client, GatewayIntentBits, Message, TextChannel } from "discord.js";
 import dotenv from "dotenv";
 import { handlePlayCommand } from "./commands/play";
 import { guildVoiceMap } from "./utils/voiceManager";
@@ -22,29 +22,45 @@ client.on("messageCreate", async (message) => {
   if (message.author.bot || !message.content.startsWith("!")) return;
 
   const [command, ...args] = message.content.trim().split(/\s+/);
+  const guildId = message.guild?.id;
+  if (!guildId) return;
+
+  const channel = message.channel;
 
   if (command.toLowerCase() === "!play") {
     await handlePlayCommand(message, args);
   } else if (command.toLowerCase() === "!stop") {
-    const guildId = message.guild?.id;
-    if (!guildId) return;
-
     const voiceData = guildVoiceMap.get(guildId);
     if (!voiceData) {
-      await message.channel.send("Nothing is playing right now.");
+      if (channel.isTextBased())
+        await channel.send("Nothing is playing right now.");
       return;
     }
 
     try {
       voiceData.player.stop();
-      voiceData.connection.destroy();
-      guildVoiceMap.delete(guildId);
-      await message.channel.send(
-        "Stopped playback and left the voice channel."
-      );
+      if (channel.isTextBased())
+        await channel.send("Playback stopped, but I am still connected.");
     } catch (error) {
       console.error(error);
-      await message.channel.send("Failed to stop playback.");
+      if (channel.isTextBased()) await channel.send("Failed to stop playback.");
+    }
+  } else if (command.toLowerCase() === "!leave") {
+    const voiceData = guildVoiceMap.get(guildId);
+    if (!voiceData) {
+      if (channel.isTextBased())
+        await channel.send("I'm not connected to a voice channel.");
+      return;
+    }
+
+    try {
+      voiceData.connection.destroy();
+      guildVoiceMap.delete(guildId);
+      if (channel.isTextBased())
+        await channel.send("Disconnected from the voice channel.");
+    } catch (error) {
+      console.error(error);
+      if (channel.isTextBased()) await channel.send("Failed to disconnect.");
     }
   }
 });

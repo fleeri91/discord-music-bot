@@ -1,3 +1,4 @@
+import { VoiceBasedChannel } from "discord.js";
 import {
   joinVoiceChannel,
   createAudioPlayer,
@@ -6,7 +7,6 @@ import {
   entersState,
   VoiceConnectionStatus,
 } from "@discordjs/voice";
-import { VoiceBasedChannel } from "discord.js"; // ✅ CORRECT
 import ytdl from "@distube/ytdl-core";
 import { guildVoiceMap } from "./voiceManager";
 
@@ -14,14 +14,46 @@ export async function joinAndPlay(
   voiceChannel: VoiceBasedChannel,
   url: string
 ) {
-  const connection = joinVoiceChannel({
-    channelId: voiceChannel.id,
-    guildId: voiceChannel.guild.id,
-    adapterCreator: voiceChannel.guild.voiceAdapterCreator,
-    selfDeaf: false,
-  });
+  const guildId = voiceChannel.guild.id;
 
-  await entersState(connection, VoiceConnectionStatus.Ready, 20_000);
+  let voiceData = guildVoiceMap.get(guildId);
+
+  // Reuse connection and player if already exists
+  let connection = voiceData?.connection;
+  let player = voiceData?.player;
+
+  if (!connection) {
+    connection = joinVoiceChannel({
+      channelId: voiceChannel.id,
+      guildId,
+      adapterCreator: voiceChannel.guild.voiceAdapterCreator,
+      selfDeaf: false,
+    });
+
+    await entersState(connection, VoiceConnectionStatus.Ready, 20_000);
+  }
+
+  if (!player) {
+    player = createAudioPlayer();
+
+    // Listen for idle but DON'T destroy connection to keep bot in VC
+    player.on(AudioPlayerStatus.Idle, () => {
+      console.log("Audio player is idle, but connection stays alive.");
+      // Do NOT call connection.destroy() here
+    });
+
+    player.on("error", (error) => {
+      console.error("Playback error:", error);
+      // Optionally destroy connection on error or keep alive based on your preference
+      // connection.destroy();
+      // guildVoiceMap.delete(guildId);
+    });
+
+    connection.subscribe(player);
+  }
+
+  // Store or update the map
+  guildVoiceMap.set(guildId, { connection, player });
 
   const stream = ytdl(url, {
     filter: "audioonly",
@@ -30,21 +62,5 @@ export async function joinAndPlay(
   });
 
   const resource = createAudioResource(stream);
-  const player = createAudioPlayer();
-
-  player.on(AudioPlayerStatus.Idle, () => {
-    connection.destroy();
-    guildVoiceMap.delete(voiceChannel.guild.id);
-  });
-
-  player.on("error", (err) => {
-    console.error("Playback error:", err);
-    connection.destroy();
-    guildVoiceMap.delete(voiceChannel.guild.id);
-  });
-
-  connection.subscribe(player);
   player.play(resource);
-
-  guildVoiceMap.set(voiceChannel.guild.id, { connection, player });
 }

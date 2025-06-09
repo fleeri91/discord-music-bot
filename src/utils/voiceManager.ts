@@ -1,6 +1,8 @@
-import { AudioPlayer, VoiceConnection } from "@discordjs/voice";
+import { VoiceConnection, AudioPlayer } from "@discordjs/voice";
 
-export const guildVoiceMap: Map<
-  string,
-  { connection: VoiceConnection; player: AudioPlayer }
-> = new Map();
+interface VoiceData {
+  connection: VoiceConnection;
+  player: AudioPlayer;
+}
+
+export const guildVoiceMap = new Map<string, VoiceData>();
