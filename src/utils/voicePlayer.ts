@@ -8,6 +8,10 @@ import {
 } from "@discordjs/voice";
 import { VoiceBasedChannel } from "discord.js"; // ✅ CORRECT
 import ytdl from "@distube/ytdl-core";
+import ffmpeg from "@ffmpeg-installer/ffmpeg";
+
+// Required for @discordjs/voice to locate ffmpeg
+process.env.FFMPEG_PATH = ffmpeg.path;
 
 export async function joinAndPlay(
   voiceChannel: VoiceBasedChannel,
