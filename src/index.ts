@@ -27,4 +27,6 @@ client.on("messageCreate", async (message) => {
   }
 });
 
+console.log("ENV TOKEN:", process.env.DISCORD_TOKEN);
+
 client.login(process.env.DISCORD_TOKEN);
