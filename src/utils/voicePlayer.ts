@@ -6,9 +6,8 @@ import {
   entersState,
   VoiceConnectionStatus,
 } from "@discordjs/voice";
-import { VoiceBasedChannel } from "discord.js";
-
-import { stream } from "play-dl";
+import { VoiceBasedChannel } from "discord.js"; // ✅ CORRECT
+import ytdl from "@distube/ytdl-core";
 
 export async function joinAndPlay(
   voiceChannel: VoiceBasedChannel,
@@ -23,12 +22,13 @@ export async function joinAndPlay(
 
   await entersState(connection, VoiceConnectionStatus.Ready, 20_000);
 
-  const playStream = await stream(url);
-
-  const resource = createAudioResource(playStream.stream, {
-    inputType: playStream.type,
+  const stream = ytdl(url, {
+    filter: "audioonly",
+    quality: "highestaudio",
+    highWaterMark: 1 << 25,
   });
 
+  const resource = createAudioResource(stream);
   const player = createAudioPlayer();
 
   player.on(AudioPlayerStatus.Idle, () => {
