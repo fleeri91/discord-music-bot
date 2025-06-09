@@ -1,5 +1,11 @@
 import { REST, Routes } from "discord.js";
 
+/**
+ * Fetches all global application commands for the bot.
+ *
+ * @param rest - The REST client used to interact with Discord's API.
+ * @returns A promise that resolves to an array of command objects.
+ */
 export async function getCommands(rest: REST): Promise<any[]> {
   console.log("Fetching commands...");
 
@@ -18,6 +24,12 @@ export async function getCommands(rest: REST): Promise<any[]> {
   }
 }
 
+/**
+ * Deletes a single global application command by ID.
+ *
+ * @param rest - The REST client used to interact with Discord's API.
+ * @param id - The ID of the command to delete.
+ */
 export async function deleteCommand(rest: REST, id: string): Promise<void> {
   if (!id || typeof id !== "string") {
     console.error("You must provide a valid command ID.");
@@ -31,6 +43,7 @@ export async function deleteCommand(rest: REST, id: string): Promise<void> {
   }
 
   try {
+    // Fetch existing commands to verify the command exists
     const commands = (await rest.get(
       Routes.applicationCommands(clientId)
     )) as any[];
@@ -42,6 +55,7 @@ export async function deleteCommand(rest: REST, id: string): Promise<void> {
       return;
     }
 
+    // Delete the specified command
     await rest.delete(Routes.applicationCommand(clientId, id));
     console.log(`Deleted command: "${targetCommand.name}" (ID: ${id})`);
   } catch (error) {
@@ -49,6 +63,11 @@ export async function deleteCommand(rest: REST, id: string): Promise<void> {
   }
 }
 
+/**
+ * Deletes all global application commands registered for the bot.
+ *
+ * @param rest - The REST client used to interact with Discord's API.
+ */
 export async function deleteAllGlobalCommands(rest: REST) {
   try {
     const commands = await getCommands(rest);
@@ -58,6 +77,7 @@ export async function deleteAllGlobalCommands(rest: REST) {
       return;
     }
 
+    // Iterate through all commands and attempt to delete each one
     for (const command of commands) {
       try {
         await deleteCommand(rest, command.id);

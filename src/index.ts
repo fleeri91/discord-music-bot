@@ -1,27 +1,42 @@
-import {
-  Client,
-  GatewayIntentBits,
-  ChatInputCommandInteraction,
-  GuildMember,
-} from "discord.js";
+import { Client, GatewayIntentBits, GuildMember } from "discord.js";
 import dotenv from "dotenv";
 import { joinAndPlay } from "./utils/voicePlayer";
 import { guildVoiceMap } from "./utils/voiceManager";
 
+// Load environment variables from .env file
 dotenv.config();
 
+/**
+ * Create a new Discord.js client with necessary intents.
+ * - Guilds: Enables the bot to receive basic guild events.
+ * - GuildVoiceStates: Enables the bot to access and react to voice state changes.
+ */
 const client = new Client({
   intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildVoiceStates],
 });
 
+/**
+ * Event: Client is ready
+ * Triggered once when the bot has successfully logged in.
+ */
 client.once("ready", () => {
   console.log(`Logged in as ${client.user?.tag}`);
 });
 
+/**
+ * Event: Interaction Create
+ * Triggered every time a user interacts with a slash command.
+ */
 client.on("interactionCreate", async (interaction) => {
+  // Only handle chat input commands (slash commands)
   if (!interaction.isChatInputCommand()) return;
 
   const guild = interaction.guild;
+
+  /**
+   * Check if the command was used within a guild.
+   * If not, reply with an error message.
+   */
   if (!guild) {
     await interaction.reply({
       content: "This command only works in guilds.",
@@ -30,7 +45,9 @@ client.on("interactionCreate", async (interaction) => {
     return;
   }
 
-  // Get full GuildMember object
+  /**
+   * Fetch the full GuildMember object for the user if it's not already resolved.
+   */
   const member =
     interaction.member instanceof GuildMember
       ? interaction.member
@@ -38,6 +55,9 @@ client.on("interactionCreate", async (interaction) => {
 
   const voiceChannel = member.voice.channel;
 
+  /**
+   * Ensure the user is in a voice channel before executing any command.
+   */
   if (!voiceChannel) {
     await interaction.reply({
       content: "You need to be in a voice channel!",
@@ -48,6 +68,10 @@ client.on("interactionCreate", async (interaction) => {
 
   const command = interaction.commandName;
 
+  /**
+   * Command: /mbplay
+   * Description: Bot joins the voice channel and plays audio from a given YouTube URL.
+   */
   if (command === "mbplay") {
     const url = interaction.options.getString("url");
     if (!url) {
@@ -59,13 +83,19 @@ client.on("interactionCreate", async (interaction) => {
     }
 
     await interaction.deferReply();
+
     try {
       await joinAndPlay(voiceChannel, url);
       await interaction.editReply(`Now playing: ${url}`);
     } catch (err) {
       console.error(err);
-      await interaction.editReply("Musicbot: Failed to play audio.");
+      await interaction.editReply("Music bot: Failed to play audio.");
     }
+
+    /**
+     * Command: /mbstop
+     * Description: Stops currently playing audio, if any.
+     */
   } else if (command === "mbstop") {
     const voiceData = guildVoiceMap.get(guild.id);
     if (!voiceData) {
@@ -77,26 +107,39 @@ client.on("interactionCreate", async (interaction) => {
     }
 
     voiceData.player.stop();
-    await interaction.reply("Musicbot: Stopped music.");
+    await interaction.reply("Music bot: Stopped music.");
+
+    /**
+     * Command: /mbjoin
+     * Description: Bot joins the voice channel without playing any audio.
+     */
   } else if (command === "mbjoin") {
     try {
-      const { connection, player } = await joinAndPlay(voiceChannel); // No URL passed!
-      await interaction.reply("Musicbot: Joined the voice channel.");
+      const { connection, player } = await joinAndPlay(voiceChannel); // No URL passed = join only
+      await interaction.reply("Music bot: Joined the voice channel.");
     } catch (err) {
       console.error(err);
-      await interaction.reply("Musicbot: Failed to join the channel.");
+      await interaction.reply("Music bot: Failed to join the channel.");
     }
+
+    /**
+     * Command: /mbleave
+     * Description: Bot leaves the current voice channel and cleans up state.
+     */
   } else if (command === "mbleave") {
     const voiceData = guildVoiceMap.get(guild.id);
     if (!voiceData) {
-      await interaction.reply("Musicbot: I'm not in a voice channel.");
+      await interaction.reply("Music bot: I'm not in a voice channel.");
       return;
     }
 
-    voiceData.connection.destroy();
-    guildVoiceMap.delete(guild.id);
-    await interaction.reply("Musicbot: Left the voice channel.");
+    voiceData.connection.destroy(); // Close the connection
+    guildVoiceMap.delete(guild.id); // Remove guild from map
+    await interaction.reply("Music bot: Left the voice channel.");
   }
 });
 
+/**
+ * Log the bot in using the Discord token from the .env file.
+ */
 client.login(process.env.DISCORD_TOKEN);
