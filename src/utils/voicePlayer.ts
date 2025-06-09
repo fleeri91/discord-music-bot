@@ -8,6 +8,7 @@ import {
 } from "@discordjs/voice";
 import { VoiceBasedChannel } from "discord.js"; // ✅ CORRECT
 import ytdl from "@distube/ytdl-core";
+import { guildVoiceMap } from "./voiceManager";
 
 export async function joinAndPlay(
   voiceChannel: VoiceBasedChannel,
@@ -33,13 +34,17 @@ export async function joinAndPlay(
 
   player.on(AudioPlayerStatus.Idle, () => {
     connection.destroy();
+    guildVoiceMap.delete(voiceChannel.guild.id);
   });
 
   player.on("error", (err) => {
     console.error("Playback error:", err);
     connection.destroy();
+    guildVoiceMap.delete(voiceChannel.guild.id);
   });
 
   connection.subscribe(player);
   player.play(resource);
+
+  guildVoiceMap.set(voiceChannel.guild.id, { connection, player });
 }

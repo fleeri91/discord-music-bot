@@ -1,6 +1,7 @@
 import { Client, GatewayIntentBits } from "discord.js";
 import dotenv from "dotenv";
 import { handlePlayCommand } from "./commands/play";
+import { guildVoiceMap } from "./utils/voiceManager";
 
 dotenv.config();
 
@@ -24,9 +25,28 @@ client.on("messageCreate", async (message) => {
 
   if (command.toLowerCase() === "!play") {
     await handlePlayCommand(message, args);
+  } else if (command.toLowerCase() === "!stop") {
+    const guildId = message.guild?.id;
+    if (!guildId) return;
+
+    const voiceData = guildVoiceMap.get(guildId);
+    if (!voiceData) {
+      await message.channel.send("Nothing is playing right now.");
+      return;
+    }
+
+    try {
+      voiceData.player.stop();
+      voiceData.connection.destroy();
+      guildVoiceMap.delete(guildId);
+      await message.channel.send(
+        "Stopped playback and left the voice channel."
+      );
+    } catch (error) {
+      console.error(error);
+      await message.channel.send("Failed to stop playback.");
+    }
   }
 });
-
-console.log("ENV TOKEN:", process.env.DISCORD_TOKEN);
 
 client.login(process.env.DISCORD_TOKEN);
