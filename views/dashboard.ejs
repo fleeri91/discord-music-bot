@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>🎵 Music Bot Dashboard</title>
+  <link rel="stylesheet" href="/css/dashboard.css">
+</head>
+<body>
+  <div class="app">
+
+    <!-- ── Header ── -->
+    <header class="header">
+      <div class="header-brand">
+        <% if (bot.avatar) { %><img src="<%= bot.avatar %>" alt="Bot avatar"><% } %>
+        <div>
+          <h1><%= bot.username %><span class="tag">MUSIC</span></h1>
+        </div>
+      </div>
+      <div class="header-meta">
+        <div class="header-stat">
+          <div class="value"><%= bot.guilds %></div>
+          <div class="label">Servers</div>
+        </div>
+        <div class="header-stat">
+          <div class="value" id="stat-playing"><%= bot.playing %></div>
+          <div class="label">Playing</div>
+        </div>
+        <div class="header-stat">
+          <div class="value" id="stat-uptime"><%= bot.uptime %></div>
+          <div class="label">Uptime</div>
+        </div>
+      </div>
+    </header>
+
+    <!-- ── Tabs ── -->
+    <div class="tabs">
+      <button class="tab active" data-panel="panel-overview">Overview</button>
+      <button class="tab" data-panel="panel-settings">Settings</button>
+      <button class="tab" data-panel="panel-servers">Servers</button>
+    </div>
+
+    <!-- ═══════════ OVERVIEW ═══════════ -->
+    <div id="panel-overview" class="panel active">
+
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="icon">🌐</div>
+          <div class="stat-value"><%= bot.guilds %></div>
+          <div class="stat-label">Servers</div>
+        </div>
+        <div class="stat-card">
+          <div class="icon">🎵</div>
+          <div class="stat-value" id="stat-playing-2"><%= bot.playing %></div>
+          <div class="stat-label">Now Playing</div>
+        </div>
+        <div class="stat-card">
+          <div class="icon">🔊</div>
+          <div class="stat-value"><%= settings.defaultVolume %>%</div>
+          <div class="stat-label">Default Volume</div>
+        </div>
+        <div class="stat-card">
+          <div class="icon">⏱️</div>
+          <div class="stat-value"><%= settings.leaveOnEmptyDelay %>s</div>
+          <div class="stat-label">Empty Timeout</div>
+        </div>
+      </div>
+
+      <div id="now-playing-list">
+        <% if (Object.keys(playerStatus).length === 0) { %>
+          <div class="empty-state">
+            <div class="icon">🔇</div>
+            <p>No music playing right now</p>
+          </div>
+        <% } else { %>
+          <% for (const [guildId, status] of Object.entries(playerStatus)) { %>
+            <% const guild = guilds.find(g => g.id === guildId) || { name: 'Unknown' }; %>
+            <div class="now-playing">
+              <% if (status.current?.thumbnail) { %>
+                <img class="thumbnail" src="<%= status.current.thumbnail %>" alt="">
+              <% } %>
+              <div class="info">
+                <div class="label"><%= guild.name %> — <%= status.paused ? '⏸ Paused' : '♫ Now Playing' %></div>
+                <div class="title"><%= status.current?.title || 'Unknown' %></div>
+                <div class="artist"><%= status.current?.artist || '' %> · 🔊 <%= status.volume %>%</div>
+              </div>
+              <div class="controls">
+                <button onclick="playerAction('<%= guildId %>','<%= status.paused ? 'resume' : 'pause' %>')" title="<%= status.paused ? 'Resume' : 'Pause' %>">
+                  <%= status.paused ? '▶' : '⏸' %>
+                </button>
+                <button onclick="playerAction('<%= guildId %>','skip')" title="Skip">⏭</button>
+                <button onclick="playerAction('<%= guildId %>','shuffle')" title="Shuffle">🔀</button>
+                <button onclick="playerAction('<%= guildId %>','stop')" title="Stop">⏹</button>
+              </div>
+            </div>
+          <% } %>
+        <% } %>
+      </div>
+    </div>
+
+    <!-- ═══════════ SETTINGS ═══════════ -->
+    <div id="panel-settings" class="panel">
+
+      <div class="settings-grid">
+
+        <!-- Auto-Leave -->
+        <div class="setting-group">
+          <h3>⏱ Auto-Leave</h3>
+
+          <div class="setting-row">
+            <div>
+              <div class="setting-label">Leave on empty channel</div>
+              <div class="setting-desc">Bot leaves when everyone leaves the voice channel</div>
+            </div>
+            <label class="toggle">
+              <input type="checkbox" data-setting="leaveOnEmpty" <%= settings.leaveOnEmpty ? 'checked' : '' %>>
+              <span class="slider"></span>
+            </label>
+          </div>
+
+          <div class="setting-row">
+            <div>
+              <div class="setting-label">Empty delay (seconds)</div>
+              <div class="setting-desc">Wait time before leaving empty channel</div>
+            </div>
+            <input type="number" data-setting="leaveOnEmptyDelay" value="<%= settings.leaveOnEmptyDelay %>" min="5" max="600">
+          </div>
+
+          <div class="setting-row">
+            <div>
+              <div class="setting-label">Leave on queue finish</div>
+              <div class="setting-desc">Bot leaves after all songs have played</div>
+            </div>
+            <label class="toggle">
+              <input type="checkbox" data-setting="leaveOnFinish" <%= settings.leaveOnFinish ? 'checked' : '' %>>
+              <span class="slider"></span>
+            </label>
+          </div>
+
+          <div class="setting-row">
+            <div>
+              <div class="setting-label">Finish delay (seconds)</div>
+              <div class="setting-desc">Wait time before leaving after queue ends</div>
+            </div>
+            <input type="number" data-setting="leaveOnFinishDelay" value="<%= settings.leaveOnFinishDelay %>" min="5" max="600">
+          </div>
+
+          <div class="setting-row">
+            <div>
+              <div class="setting-label">Leave on /stop</div>
+              <div class="setting-desc">Bot leaves immediately when stopped</div>
+            </div>
+            <label class="toggle">
+              <input type="checkbox" data-setting="leaveOnStop" <%= settings.leaveOnStop ? 'checked' : '' %>>
+              <span class="slider"></span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Playback -->
+        <div class="setting-group">
+          <h3>🎵 Playback</h3>
+
+          <div class="setting-row">
+            <div>
+              <div class="setting-label">Default volume</div>
+              <div class="setting-desc">Volume for new queues (0–100)</div>
+            </div>
+            <input type="number" data-setting="defaultVolume" value="<%= settings.defaultVolume %>" min="0" max="100">
+          </div>
+
+          <div class="setting-row">
+            <div>
+              <div class="setting-label">Max volume</div>
+              <div class="setting-desc">Maximum allowed volume</div>
+            </div>
+            <input type="number" data-setting="maxVolume" value="<%= settings.maxVolume %>" min="50" max="200">
+          </div>
+
+          <div class="setting-row">
+            <div>
+              <div class="setting-label">Max queue size</div>
+              <div class="setting-desc">Maximum songs in queue</div>
+            </div>
+            <input type="number" data-setting="maxQueueSize" value="<%= settings.maxQueueSize %>" min="10" max="1000">
+          </div>
+
+          <div class="setting-row">
+            <div>
+              <div class="setting-label">Default repeat mode</div>
+            </div>
+            <select data-setting="defaultRepeatMode">
+              <option value="off" <%= settings.defaultRepeatMode === 'off' ? 'selected' : '' %>>Off</option>
+              <option value="track" <%= settings.defaultRepeatMode === 'track' ? 'selected' : '' %>>Track</option>
+              <option value="queue" <%= settings.defaultRepeatMode === 'queue' ? 'selected' : '' %>>Queue</option>
+            </select>
+          </div>
+
+          <div class="setting-row">
+            <div>
+              <div class="setting-label">Show "Now Playing"</div>
+              <div class="setting-desc">Send embed when a new song starts</div>
+            </div>
+            <label class="toggle">
+              <input type="checkbox" data-setting="showNowPlaying" <%= settings.showNowPlaying ? 'checked' : '' %>>
+              <span class="slider"></span>
+            </label>
+          </div>
+
+          <div class="setting-row">
+            <div>
+              <div class="setting-label">Allow duplicates</div>
+              <div class="setting-desc">Allow the same song multiple times in queue</div>
+            </div>
+            <label class="toggle">
+              <input type="checkbox" data-setting="allowDuplicates" <%= settings.allowDuplicates ? 'checked' : '' %>>
+              <span class="slider"></span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Permissions -->
+        <div class="setting-group">
+          <h3>🔒 Permissions</h3>
+
+          <div class="setting-row">
+            <div>
+              <div class="setting-label">DJ role name</div>
+              <div class="setting-desc">Role name for DJ permissions</div>
+            </div>
+            <input type="text" data-setting="djRoleName" value="<%= settings.djRoleName %>">
+          </div>
+
+          <div class="setting-row">
+            <div>
+              <div class="setting-label">DJ only mode</div>
+              <div class="setting-desc">Only users with DJ role can use commands</div>
+            </div>
+            <label class="toggle">
+              <input type="checkbox" data-setting="djOnly" <%= settings.djOnly ? 'checked' : '' %>>
+              <span class="slider"></span>
+            </label>
+          </div>
+
+          <div class="setting-row">
+            <div>
+              <div class="setting-label">Must be in voice channel</div>
+              <div class="setting-desc">Users must be in voice to use commands</div>
+            </div>
+            <label class="toggle">
+              <input type="checkbox" data-setting="restrictToVoiceChannel" <%= settings.restrictToVoiceChannel ? 'checked' : '' %>>
+              <span class="slider"></span>
+            </label>
+          </div>
+        </div>
+
+        <!-- History -->
+        <div class="setting-group">
+          <h3>📋 History & Misc</h3>
+
+          <div class="setting-row">
+            <div>
+              <div class="setting-label">History size</div>
+              <div class="setting-desc">Number of past songs to remember</div>
+            </div>
+            <input type="number" data-setting="maxHistorySize" value="<%= settings.maxHistorySize %>" min="0" max="200">
+          </div>
+
+          <div class="setting-row">
+            <div>
+              <div class="setting-label">Enable autoplay</div>
+              <div class="setting-desc">Auto-play related songs when queue ends</div>
+            </div>
+            <label class="toggle">
+              <input type="checkbox" data-setting="enableAutoplay" <%= settings.enableAutoplay ? 'checked' : '' %>>
+              <span class="slider"></span>
+            </label>
+          </div>
+        </div>
+
+      </div>
+
+      <div class="button-row">
+        <button class="btn btn-danger" onclick="resetSettings()">Reset All Defaults</button>
+      </div>
+
+    </div>
+
+    <!-- ═══════════ SERVERS ═══════════ -->
+    <div id="panel-servers" class="panel">
+      <% if (guilds.length === 0) { %>
+        <div class="empty-state">
+          <div class="icon">🌐</div>
+          <p>Bot is not in any servers yet</p>
+        </div>
+      <% } else { %>
+        <div class="guild-list">
+          <% guilds.forEach(guild => { %>
+            <div class="guild-card">
+              <% if (guild.icon) { %>
+                <img src="<%= guild.icon %>" alt="">
+              <% } else { %>
+                <div style="width:40px;height:40px;border-radius:50%;background:var(--bg-input);display:flex;align-items:center;justify-content:center;font-size:1.2rem;">🎵</div>
+              <% } %>
+              <div>
+                <div class="guild-name"><%= guild.name %></div>
+                <div class="guild-members"><%= guild.memberCount %> members</div>
+              </div>
+              <% if (playerStatus[guild.id]) { %>
+                <span class="playing-badge">♫ PLAYING</span>
+              <% } %>
+            </div>
+          <% }) %>
+        </div>
+      <% } %>
+    </div>
+
+  </div>
+
+  <script src="/js/dashboard.js"></script>
+</body>
+</html>
