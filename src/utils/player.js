@@ -72,18 +72,6 @@ function createFfmpegStream(directUrl, volume = 1.0) {
     { stdio: ["ignore", "pipe", "pipe"] },
   );
 
-  // Debug: check if data is actually flowing
-  let bytes = 0;
-  ffmpeg.stdout.on("data", (chunk) => {
-    bytes += chunk.length;
-    if (bytes === chunk.length) {
-      console.log("[ffmpeg] First data chunk received:", chunk.length, "bytes");
-    }
-  });
-  ffmpeg.stdout.on("end", () => {
-    console.log("[ffmpeg] Stream ended. Total bytes:", bytes);
-  });
-
   ffmpeg.stdout.on("error", () => {});
 
   ffmpeg.on("error", (err) => {
@@ -257,6 +245,17 @@ class MusicPlayer {
       console.log(`[Player] Got direct URL: ${directUrl?.slice(0, 80)}...`);
       streamData = createFfmpegStream(directUrl, queue.volume);
       console.log("[Player] ffmpeg stream created");
+
+      // Wait for connection to be ready before playing
+      const {
+        VoiceConnectionStatus,
+        entersState,
+      } = require("@discordjs/voice");
+      if (queue.connection.state.status !== VoiceConnectionStatus.Ready) {
+        console.log("[Player] Waiting for voice connection...");
+        await entersState(queue.connection, VoiceConnectionStatus.Ready, 10000);
+      }
+      console.log("[Player] Connection ready, starting playback");
 
       // Kill previous stream processes if any
       if (queue._streamCleanup) queue._streamCleanup();
