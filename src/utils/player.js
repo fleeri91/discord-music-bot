@@ -54,12 +54,6 @@ function createFfmpegStream(directUrl, volume = 1.0) {
   const ffmpeg = spawn(
     "ffmpeg",
     [
-      "-reconnect",
-      "1",
-      "-reconnect_streamed",
-      "1",
-      "-reconnect_delay_max",
-      "5",
       "-i",
       directUrl,
       "-analyzeduration",
@@ -77,6 +71,18 @@ function createFfmpegStream(directUrl, volume = 1.0) {
     ],
     { stdio: ["ignore", "pipe", "pipe"] },
   );
+
+  // Debug: check if data is actually flowing
+  let bytes = 0;
+  ffmpeg.stdout.on("data", (chunk) => {
+    bytes += chunk.length;
+    if (bytes === chunk.length) {
+      console.log("[ffmpeg] First data chunk received:", chunk.length, "bytes");
+    }
+  });
+  ffmpeg.stdout.on("end", () => {
+    console.log("[ffmpeg] Stream ended. Total bytes:", bytes);
+  });
 
   ffmpeg.stdout.on("error", () => {});
 
