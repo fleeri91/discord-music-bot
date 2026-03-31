@@ -88,6 +88,14 @@ function createFfmpegStream(directUrl, volume = 1.0) {
     console.error("[ffmpeg] Process error:", err.message);
   });
 
+  let stderrData = "";
+  ffmpeg.stderr.on("data", (d) => (stderrData += d));
+  ffmpeg.on("close", (code) => {
+    if (code !== 0) {
+      console.error("[ffmpeg] Exit code", code, ":", stderrData.slice(0, 300));
+    }
+  });
+
   return {
     stream: ffmpeg.stdout,
     cleanup: () => {
@@ -234,15 +242,19 @@ class MusicPlayer {
       let streamData;
       let directUrl;
       if (song.source === "youtube") {
+        console.log(`[Player] Getting direct URL for: ${song.url}`);
         directUrl = await getDirectUrl(song.url);
       } else if (song.source === "spotify") {
         const searchQuery = `${song.title} ${song.artist}`
           .replace(/\s*[-–(].*?(remaster|edition|version|deluxe).*?[)]/gi, "")
           .trim();
+        console.log(`[Player] Searching yt-dlp for: ${searchQuery}`);
         directUrl = await getDirectUrl(`ytsearch1:${searchQuery}`);
       }
 
+      console.log(`[Player] Got direct URL: ${directUrl?.slice(0, 80)}...`);
       streamData = createFfmpegStream(directUrl, queue.volume);
+      console.log("[Player] ffmpeg stream created");
 
       // Kill previous stream processes if any
       if (queue._streamCleanup) queue._streamCleanup();
