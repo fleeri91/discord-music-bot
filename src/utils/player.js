@@ -65,18 +65,14 @@ function createFfmpegStream(directUrl, volume = 1.0) {
       "-analyzeduration",
       "0",
       "-loglevel",
-      "0",
+      "warning",
       ...volumeFilter,
-      "-c:a",
-      "libopus",
       "-f",
-      "ogg",
+      "s16le",
       "-ar",
       "48000",
       "-ac",
       "2",
-      "-b:a",
-      "96k",
       "pipe:1",
     ],
     { stdio: ["ignore", "pipe", "pipe"] },
@@ -261,7 +257,8 @@ class MusicPlayer {
       queue._streamCleanup = streamData.cleanup;
 
       const resource = createAudioResource(streamData.stream, {
-        inputType: StreamType.OggOpus,
+        inputType: StreamType.Raw,
+        inlineVolume: false,
       });
 
       resource.volume?.setVolume(queue.volume);
