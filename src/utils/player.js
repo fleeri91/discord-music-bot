@@ -206,6 +206,9 @@ class MusicPlayer {
       }
     });
 
+    // Wait for the connection to be ready before returning
+    await entersState(queue.connection, VoiceConnectionStatus.Ready, 15000);
+
     this.queues.set(guildId, queue);
     this._watchEmpty(guildId);
     return queue;
@@ -244,18 +247,7 @@ class MusicPlayer {
 
       console.log(`[Player] Got direct URL: ${directUrl?.slice(0, 80)}...`);
       streamData = createFfmpegStream(directUrl, queue.volume);
-      console.log("[Player] ffmpeg stream created");
-
-      // Wait for connection to be ready before playing
-      const {
-        VoiceConnectionStatus,
-        entersState,
-      } = require("@discordjs/voice");
-      if (queue.connection.state.status !== VoiceConnectionStatus.Ready) {
-        console.log("[Player] Waiting for voice connection...");
-        await entersState(queue.connection, VoiceConnectionStatus.Ready, 10000);
-      }
-      console.log("[Player] Connection ready, starting playback");
+      console.log("[Player] ffmpeg stream created, starting playback");
 
       // Kill previous stream processes if any
       if (queue._streamCleanup) queue._streamCleanup();

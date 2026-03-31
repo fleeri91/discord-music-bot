@@ -45,16 +45,15 @@ module.exports = {
     const player = interaction.client.musicPlayer;
     let queue = player.getQueue(guildId);
 
-    // Create queue if it doesn't exist
-    if (!queue) {
-      queue = await player.createQueue(
-        guildId,
-        member.voice.channel,
-        interaction.channel,
-      );
-    }
-
     try {
+      // Create queue if it doesn't exist
+      if (!queue) {
+        queue = await player.createQueue(
+          guildId,
+          member.voice.channel,
+          interaction.channel,
+        );
+      }
       let songs = [];
 
       // ── Spotify URL ──
