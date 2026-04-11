@@ -54,19 +54,29 @@ function createFfmpegStream(directUrl, volume = 1.0) {
   const ffmpeg = spawn(
     "ffmpeg",
     [
+      "-reconnect",
+      "1",
+      "-reconnect_streamed",
+      "1",
+      "-reconnect_delay_max",
+      "5",
       "-i",
       directUrl,
       "-analyzeduration",
       "0",
       "-loglevel",
-      "warning",
+      "0",
       ...volumeFilter,
+      "-c:a",
+      "libopus",
       "-f",
-      "s16le",
+      "ogg",
       "-ar",
       "48000",
       "-ac",
       "2",
+      "-b:a",
+      "96k",
       "pipe:1",
     ],
     { stdio: ["ignore", "pipe", "pipe"] },
@@ -76,14 +86,6 @@ function createFfmpegStream(directUrl, volume = 1.0) {
 
   ffmpeg.on("error", (err) => {
     console.error("[ffmpeg] Process error:", err.message);
-  });
-
-  let stderrData = "";
-  ffmpeg.stderr.on("data", (d) => (stderrData += d));
-  ffmpeg.on("close", (code) => {
-    if (code !== 0) {
-      console.error("[ffmpeg] Exit code", code, ":", stderrData.slice(0, 300));
-    }
   });
 
   return {
@@ -206,9 +208,6 @@ class MusicPlayer {
       }
     });
 
-    // Wait for the connection to be ready before returning
-    await entersState(queue.connection, VoiceConnectionStatus.Ready, 15000);
-
     this.queues.set(guildId, queue);
     this._watchEmpty(guildId);
     return queue;
@@ -235,27 +234,22 @@ class MusicPlayer {
       let streamData;
       let directUrl;
       if (song.source === "youtube") {
-        console.log(`[Player] Getting direct URL for: ${song.url}`);
         directUrl = await getDirectUrl(song.url);
       } else if (song.source === "spotify") {
         const searchQuery = `${song.title} ${song.artist}`
           .replace(/\s*[-–(].*?(remaster|edition|version|deluxe).*?[)]/gi, "")
           .trim();
-        console.log(`[Player] Searching yt-dlp for: ${searchQuery}`);
         directUrl = await getDirectUrl(`ytsearch1:${searchQuery}`);
       }
 
-      console.log(`[Player] Got direct URL: ${directUrl?.slice(0, 80)}...`);
       streamData = createFfmpegStream(directUrl, queue.volume);
-      console.log("[Player] ffmpeg stream created, starting playback");
 
       // Kill previous stream processes if any
       if (queue._streamCleanup) queue._streamCleanup();
       queue._streamCleanup = streamData.cleanup;
 
       const resource = createAudioResource(streamData.stream, {
-        inputType: StreamType.Raw,
-        inlineVolume: false,
+        inputType: StreamType.OggOpus,
       });
 
       resource.volume?.setVolume(queue.volume);
