@@ -1,4 +1,4 @@
-const { SlashCommandBuilder } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -17,7 +17,10 @@ module.exports = {
     const removed = player.remove(interaction.guildId, pos);
 
     if (removed) {
-      await interaction.reply(`🗑️ Removed **${removed.title}** from position #${pos}`);
+      await interaction.reply({
+        embeds: [new EmbedBuilder().setColor(0x7C3AED).setDescription(`🗑️ Removed **${removed.title}**`)],
+        ephemeral: true,
+      });
     } else {
       await interaction.reply({ content: '❌ Invalid position.', ephemeral: true });
     }

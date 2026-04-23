@@ -1,4 +1,4 @@
-const { SlashCommandBuilder } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -22,7 +22,12 @@ module.exports = {
 
     const level = interaction.options.getInteger('level');
     const actual = player.setVolume(interaction.guildId, level);
-    const bar = '█'.repeat(Math.round(actual / 10)) + '░'.repeat(10 - Math.round(actual / 10));
-    await interaction.reply(`🔊 Volume: \`${bar}\` **${actual}%**`);
+    const filled = Math.round(actual / 10);
+    const bar = '█'.repeat(filled) + '░'.repeat(10 - filled);
+
+    await interaction.reply({
+      embeds: [new EmbedBuilder().setColor(0x7C3AED).setDescription(`🔊 \`${bar}\` **${actual}%**`)],
+      ephemeral: true,
+    });
   },
 };

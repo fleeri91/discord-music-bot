@@ -1,4 +1,4 @@
-const { SlashCommandBuilder } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -13,12 +13,18 @@ module.exports = {
       return interaction.reply({ content: '❌ Nothing is playing.', ephemeral: true });
     }
 
+    let text;
     if (queue.paused) {
       player.resume(interaction.guildId);
-      await interaction.reply('▶️ Resumed playback.');
+      text = '▶️ Resumed';
     } else {
       player.pause(interaction.guildId);
-      await interaction.reply('⏸️ Paused playback.');
+      text = '⏸️ Paused';
     }
+
+    await interaction.reply({
+      embeds: [new EmbedBuilder().setColor(0x7C3AED).setDescription(text)],
+      ephemeral: true,
+    });
   },
 };

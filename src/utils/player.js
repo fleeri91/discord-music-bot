@@ -8,6 +8,7 @@ const {
   NoSubscriberBehavior,
   StreamType,
 } = require("@discordjs/voice");
+const { EmbedBuilder } = require("discord.js");
 const { spawn } = require("child_process");
 const play = require("play-dl");
 const settings = require("./settings");
@@ -86,6 +87,14 @@ function createFfmpegStream(directUrl, volume = 1.0) {
 
   ffmpeg.on("error", (err) => {
     console.error("[ffmpeg] Process error:", err.message);
+  });
+
+  // Drain stderr so the pipe buffer never fills and blocks ffmpeg.
+  let stderrBuf = "";
+  ffmpeg.stderr.on("data", (d) => (stderrBuf += d));
+  ffmpeg.on("close", (code) => {
+    if (code !== 0 && stderrBuf)
+      console.error("[ffmpeg] exited", code, ":", stderrBuf.slice(0, 300));
   });
 
   return {
@@ -182,9 +191,10 @@ class MusicPlayer {
       selfDeaf: true,
     });
 
-    // Create audio player
+    // Create audio player — Pause when no ready subscriber so we don't
+    // consume the stream before the voice connection reaches Ready state.
     queue.player = createAudioPlayer({
-      behaviors: { noSubscriber: NoSubscriberBehavior.Play },
+      behaviors: { noSubscriber: NoSubscriberBehavior.Pause },
     });
 
     queue.connection.subscribe(queue.player);
@@ -207,6 +217,15 @@ class MusicPlayer {
         this.destroy(guildId);
       }
     });
+
+    // Wait for the connection to be ready before returning — ensures
+    // play() is never called against a connection that isn't established yet.
+    try {
+      await entersState(queue.connection, VoiceConnectionStatus.Ready, 30_000);
+    } catch {
+      queue.connection.destroy();
+      throw new Error("Timed out connecting to the voice channel.");
+    }
 
     this.queues.set(guildId, queue);
     this._watchEmpty(guildId);
@@ -257,35 +276,21 @@ class MusicPlayer {
       queue.player.play(resource);
 
       if (settings.get("showNowPlaying", queue.guildId)) {
-        queue.textChannel
-          .send({
-            embeds: [
-              {
-                color: 0x7c3aed,
-                author: { name: "♫ Now Playing" },
-                title: song.title,
-                url: song.url,
-                description: song.artist ? `by **${song.artist}**` : null,
-                thumbnail: song.thumbnail ? { url: song.thumbnail } : null,
-                fields: [
-                  {
-                    name: "Duration",
-                    value: song.duration || "Live",
-                    inline: true,
-                  },
-                  {
-                    name: "Requested by",
-                    value: `<@${song.requestedBy}>`,
-                    inline: true,
-                  },
-                ],
-                footer: {
-                  text: `🔊 ${Math.round(queue.volume * 100)}% • ${queue.songs.length - 1} in queue`,
-                },
-              },
-            ],
-          })
-          .catch(() => {});
+        const embed = new EmbedBuilder()
+          .setColor(0x7c3aed)
+          .setAuthor({ name: "♫ Now Playing" })
+          .setTitle(song.title)
+          .setURL(song.url)
+          .setThumbnail(song.thumbnail || null)
+          .addFields(
+            { name: "Duration", value: song.duration || "Live", inline: true },
+            { name: "Requested by", value: `<@${song.requestedBy}>`, inline: true },
+          )
+          .setFooter({ text: `🔊 ${Math.round(queue.volume * 100)}% • ${queue.songs.length - 1} in queue` });
+
+        if (song.artist) embed.setDescription(`by **${song.artist}**`);
+
+        queue.textChannel.send({ embeds: [embed] }).catch(() => {});
       }
     } catch (err) {
       console.error(`[Player] Play error:`, err.message);

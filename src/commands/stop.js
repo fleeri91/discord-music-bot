@@ -1,4 +1,4 @@
-const { SlashCommandBuilder } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -14,6 +14,9 @@ module.exports = {
     }
 
     player.destroy(interaction.guildId);
-    await interaction.reply('⏹️ Stopped playback and cleared the queue.');
+    await interaction.reply({
+      embeds: [new EmbedBuilder().setColor(0x7C3AED).setDescription('⏹️ Stopped playback and left the channel.')],
+      ephemeral: true,
+    });
   },
 };

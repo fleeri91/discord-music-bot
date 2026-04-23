@@ -1,4 +1,4 @@
-const { SlashCommandBuilder } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -20,8 +20,11 @@ module.exports = {
     const mode = interaction.options.getString('mode');
 
     if (player.setRepeat(interaction.guildId, mode)) {
-      const labels = { off: '🚫 Repeat off', track: '🔂 Repeating current track', queue: '🔁 Repeating entire queue' };
-      await interaction.reply(labels[mode]);
+      const labels = { off: '🚫 Repeat off', track: '🔂 Repeating track', queue: '🔁 Repeating queue' };
+      await interaction.reply({
+        embeds: [new EmbedBuilder().setColor(0x7C3AED).setDescription(labels[mode])],
+        ephemeral: true,
+      });
     } else {
       await interaction.reply({ content: '❌ Nothing is playing.', ephemeral: true });
     }
